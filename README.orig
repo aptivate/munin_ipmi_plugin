@@ -1,0 +1,22 @@
+munin_ipmi_plugins
+------------------
+
+This is simply a python rewrite of the ipmi_sensor_ writen in Ruby by Peter Palfrader. 
+
+
+
+
+Reason
+------
+
+We had a machine that was very long to run the full "ipmitool -I open " so we had to modify the
+way the plugin was working. We prefer python, so a quick rewrite was done. 
+
+Improvements
+------------
+
+The full on ipmitool command is only run on suggests, then a specific get is run everytime 
+munin-node is done. 
+
+The Ruby version can be found here : 
+http://svn.noreply.org/cgi-bin/viewcvs.cgi/*checkout*/trunk/munin/ipmi_sensor_?root=WeaselUtils
