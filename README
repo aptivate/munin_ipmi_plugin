@@ -1,3 +1,4 @@
 Cloned from http://www.logilab.org/blogentry/9371
 <http://hg.logilab.org/munin_ipmi_plugins/file/f2e7c91f5ea7>
+by Chris Wilson <chris+muninexchange@aptivate.org>
 to make local improvements (remove hard-coded sensor names).
