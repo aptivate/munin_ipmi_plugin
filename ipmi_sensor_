@@ -239,24 +239,26 @@ def config_unit(unit):
         nname = normalize_sensor(lbl)
         
         print "%s.label %s" % (nname, lbl)
-        assertions = values['Assertions Enabled'].split()
-        warn_l = warn_u = crit_l = crit_u = ""
-        if 'lcr-' in assertions:
-            crit_l = values['Lower Critical'].replace("na","")
-        if 'lnc-' in assertions:
-            warn_l = values['Lower Non-Critical'].replace("na","")
-        if 'ucr+' in assertions:
-            crit_u = values['Upper Critical'].replace("na","")
-        if 'unc+' in assertions:
-            warn_u = values['Upper Non-Critical'].replace("na","")
-        warn = "%s:%s" % (warn_l,warn_u)
-        crit = "%s:%s" % (crit_l,crit_u)
-        if warn!=":":
-            print "%s.warning %s" % (nname, warn)
-        if crit!=":":
-            print "%s.critical %s" % (nname, crit)
-        
-        
+
+        try:
+            assertions = values['Assertions Enabled'].split()
+            warn_l = warn_u = crit_l = crit_u = ""
+            if 'lcr-' in assertions:
+                crit_l = values['Lower Critical'].replace("na","")
+            if 'lnc-' in assertions:
+                warn_l = values['Lower Non-Critical'].replace("na","")
+            if 'ucr+' in assertions:
+                crit_u = values['Upper Critical'].replace("na","")
+            if 'unc+' in assertions:
+                warn_u = values['Upper Non-Critical'].replace("na","")
+            warn = "%s:%s" % (warn_l,warn_u)
+            crit = "%s:%s" % (crit_l,crit_u)
+            if warn!=":":
+                print "%s.warning %s" % (nname, warn)
+            if crit!=":":
+                print "%s.critical %s" % (nname, crit)
+        except KeyError, e:
+            pass # don't print thresholds if we don't know what they are
 
 def config():
     unit = query_unit(sys.argv[0])
