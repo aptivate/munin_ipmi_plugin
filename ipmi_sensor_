@@ -51,7 +51,7 @@ def normalize_sensor(name):
     name = re.sub("[^a-z0-9A-Z]","_", name)
     return name
 
-def parse_data( data ):
+def parse_data(data, command):
     """
     Parse the data returned by ipmitool get which should be of the
     following form:
@@ -70,16 +70,31 @@ def parse_data( data ):
      Assertion Events      : 
      Assertions Enabled    : lcr- 
      Deassertions Enabled  : lcr- 
-    
     """
+
     sensors = {}
     cur_sensor = None
+    skip_states_asserted = False
+
     for line in data.splitlines()[1:]:
         if not line.strip():
             cur_sensor = None
             continue
+        
+        if line.startswith(" States Asserted"):
+            skip_states_asserted = True
+        elif not line.startswith("                         ["):
+            skip_states_asserted = False
 
-        label, data = line.split(":", 1)
+        if skip_states_asserted:
+            continue
+
+        try:
+            label, data = line.split(":", 1)
+        except ValueError, e:
+            raise Exception("Expected to find a name and value on line " +
+                "output from %s: %s: %s" % (command, line, e))
+
         if line.startswith("Sensor ID"):
             id_match = re.match("(.*) \((0x.*)\)", data)
             if not id_match:
@@ -111,26 +126,34 @@ def get_sensor_names():
 
 def get_sensors():
     cache_filename = join(CACHEDIR,CACHEFILE)
+
     try:
         mtime = os.stat(cache_filename)[ST_MTIME]
     except OSError:
         mtime = 0
-    curtime = time()
 
-    if curtime-mtime>CACHEAGE:
-	if not SENSORS:
-            p = Popen(["ipmitool","-I","open","sensor"], shell=False, stdout=PIPE)
-	else:
-            p = Popen(["ipmitool","-I","open","sensor", "get"] + SENSORS, shell=False, stdout=PIPE)
+    curtime = time()
+    command = None
+
+    if curtime - mtime > CACHEAGE:
+        if not SENSORS:
+            command = ["ipmitool","-I","open","sensor"]
+        else:
+            command = ["ipmitool","-I","open","sensor", "get"] + SENSORS
+
+        p = Popen(command, shell=False, stdout=PIPE)
         data = p.stdout.read()
+
         try:
             f = file(cache_filename,"w")
             f.write(data)
         except OSError:
             pass
     else:
+        command = [cache_filename]
         data = file(cache_filename).read()
-    return parse_data(data)
+
+    return parse_data(data, " ".join(command))
 
 def query_unit(arg):
     m = re.search( '_u_(.*)$', arg)
@@ -168,6 +191,18 @@ UNITS_TO_SENSORS = {
                 'args' : '--base 1000',
                 'vlabel' : 'Watts',
                 'info' : "This graph shows the watts as reported by IPMI",
+                'sensors' : [],
+                },
+    'status' : { 'title' : "Status",
+                'args' : '--base 1000 -l 0',
+                'vlabel' : 'Status',
+                'info' : "This graph shows the status code (unknown units) reported by IPMI devices on HP ProLiant GL320 D6",
+                'sensors' : [],
+                },
+    'fans' : { 'title' : "Fans",
+                'args' : '--base 1000 -l 0',
+                'vlabel' : 'Unknown',
+                'info' : "This graph shows the unknown numeric value reported by IPMI fans on HP ProLiant GL320 D6",
                 'sensors' : [],
                 },
 }
@@ -232,7 +267,12 @@ def report_unit(unit):
     data = get_sensors()
     for lbl in info['sensors']:
         nname = normalize_sensor(lbl)
-        value = data[lbl]["Sensor Reading"]
+
+        try:
+            value = data[lbl]["Sensor Reading"]
+        except KeyError, e:
+            raise Exception(("Expected a Sensor Reading for %s, but not " +
+                "found in %s") % (lbl, data[lbl]))
 
         if value == 'Not Present':
 	    value = 'nan'
